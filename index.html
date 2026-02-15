@@ -5,75 +5,117 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Colorado Small Claims Court - JDF 250 Form Questionnaire</title>
     <script>
-        // Define these functions FIRST, before any HTML loads
-        // This ensures onclick handlers can find them
+        // Navigation functions defined in HEAD for maximum compatibility
         window.currentSection = 1;
+        window.requestFeeWaiver = false;
         
         window.nextPage = function() {
-            console.log('Next clicked! Section:', window.currentSection);
+            console.log('window.nextPage() called, section:', window.currentSection);
             
-            var section = window.currentSection || 1;
+            var section = window.currentSection;
             
-            // Hide all sections
-            var sections = document.querySelectorAll('.section');
-            for (var i = 0; i < sections.length; i++) {
-                sections[i].classList.remove('active');
+            // Validate current section before advancing (skip section 7 - fee waiver)
+            if (section !== 7) {
+                var currentSectionEl = document.querySelector('.section.active');
+                if (currentSectionEl) {
+                    // Check text inputs, dates, times, and textareas
+                    var inputs = currentSectionEl.querySelectorAll('input[type="text"], input[type="date"], input[type="time"], input[type="tel"], textarea');
+                    for (var i = 0; i < inputs.length; i++) {
+                        var input = inputs[i];
+                        var labelText = input.previousElementSibling ? input.previousElementSibling.textContent : '';
+                        var isRequired = labelText.indexOf('(required') !== -1;
+                        
+                        if (isRequired && (!input.value || input.value.trim() === '')) {
+                            alert('Please fill in all required fields');
+                            input.focus();
+                            return false;
+                        }
+                    }
+                    
+                    // Only check acknowledgment checkboxes (sections 3 and 5 have these)
+                    // Don't check all checkbox-groups, only specific required ones
+                    if (section === 3) {
+                        var defendantJurisdiction = document.getElementById('defendantJurisdiction');
+                        if (defendantJurisdiction && !defendantJurisdiction.checked) {
+                            alert('Please check the defendant jurisdiction requirement');
+                            defendantJurisdiction.focus();
+                            return false;
+                        }
+                    }
+                    
+                    if (section === 5) {
+                        var serviceUnderstanding = document.getElementById('serviceUnderstanding');
+                        var filingDeclaration = document.getElementById('filingDeclaration');
+                        
+                        if (serviceUnderstanding && !serviceUnderstanding.checked) {
+                            alert('Please check the service acknowledgment');
+                            serviceUnderstanding.focus();
+                            return false;
+                        }
+                        
+                        if (filingDeclaration && !filingDeclaration.checked) {
+                            alert('Please check the filing declaration');
+                            filingDeclaration.focus();
+                            return false;
+                        }
+                    }
+                }
             }
             
-            // Show next section
-            section++;
-            window.currentSection = section;
-            
-            var nextSection = document.querySelector('.section[data-section="' + section + '"]');
-            if (nextSection) {
-                nextSection.classList.add('active');
+            // Section 5: generate summary
+            if (section === 5) {
+                if (typeof generateSummary === 'function') generateSummary();
             }
             
-            // Update progress
-            var progress = (section / 8) * 100;
-            var progressBar = document.getElementById('progressBar');
-            if (progressBar) {
-                progressBar.style.width = progress + '%';
+            // Section 6: check fee waiver
+            if (section === 6) {
+                var feeWaiverYes = document.getElementById('feeWaiverYes');
+                window.requestFeeWaiver = feeWaiverYes && feeWaiverYes.checked;
+                if (!window.requestFeeWaiver) {
+                    if (typeof generateSummary === 'function') generateSummary();
+                    showSection(8);
+                    return false;
+                }
             }
             
-            window.scrollTo(0, 0);
+            // Section 7: go to review
+            if (section === 7) {
+                if (typeof generateSummary === 'function') generateSummary();
+                showSection(8);
+                return false;
+            }
+            
+            if (section < 8) {
+                showSection(section + 1);
+            }
             return false;
         };
         
         window.prevPage = function() {
-            console.log('Back clicked! Section:', window.currentSection);
-            
-            var section = window.currentSection || 1;
+            var section = window.currentSection;
             if (section > 1) {
-                // Hide all sections
-                var sections = document.querySelectorAll('.section');
-                for (var i = 0; i < sections.length; i++) {
-                    sections[i].classList.remove('active');
+                if (section === 8 && !window.requestFeeWaiver) {
+                    showSection(6);
+                } else {
+                    showSection(section - 1);
                 }
-                
-                // Show previous section
-                section--;
-                window.currentSection = section;
-                
-                var prevSection = document.querySelector('.section[data-section="' + section + '"]');
-                if (prevSection) {
-                    prevSection.classList.add('active');
-                }
-                
-                // Update progress
-                var progress = (section / 8) * 100;
-                var progressBar = document.getElementById('progressBar');
-                if (progressBar) {
-                    progressBar.style.width = progress + '%';
-                }
-                
-                window.scrollTo(0, 0);
             }
             return false;
         };
         
-        // Log when this script loads
-        console.log('Functions defined in HEAD');
+        function showSection(num) {
+            var sections = document.querySelectorAll('.section');
+            for (var i = 0; i < sections.length; i++) {
+                sections[i].classList.remove('active');
+            }
+            var target = document.querySelector('.section[data-section="' + num + '"]');
+            if (target) target.classList.add('active');
+            window.currentSection = num;
+            var progress = (num / 8) * 100;
+            var bar = document.getElementById('progressBar');
+            if (bar) bar.style.width = progress + '%';
+            window.scrollTo(0, 0);
+        }
     </script>
     <style>
         * {
@@ -420,17 +462,6 @@
         </div>
         
         <div class="content">
-            <!-- DEBUG: Simple test - VISIBLE -->
-            <div style="padding: 20px; background: #ffeb3b; margin: 10px; border: 3px solid red;" id="debugTest">
-                <h2>iPhone Debug Test</h2>
-                <button type="button" onclick="alert('TEST 1 WORKS!');" style="padding: 20px; font-size: 20px; background: lime;">TEST 1: Click Me</button>
-                <br><br>
-                <button type="button" onclick="document.getElementById('result').innerHTML='TEST 2 WORKS!';" style="padding: 20px; font-size: 20px; background: cyan;">TEST 2: Click Me</button>
-                <div id="result" style="font-size: 24px; font-weight: bold; margin-top: 10px;">Result will appear here</div>
-                <br>
-                <button type="button" onclick="window.testNext();" style="padding: 20px; font-size: 20px; background: orange;">TEST 3: Test Next Function</button>
-            </div>
-            
             <form id="claimsForm" onsubmit="return false;" novalidate>
                 <!-- Section 1: Court Information -->
                 <div class="section active" data-section="1">
@@ -439,27 +470,27 @@
 
                     <div class="form-group">
                         <label>County <span class="label-hint">(required)</span></label>
-                        <input type="text" id="county" required>
+                        <input type="text" id="county">
                     </div>
 
                     <div class="form-group">
                         <label>Court Street Address <span class="label-hint">(required)</span></label>
-                        <input type="text" id="courtStreet" required>
+                        <input type="text" id="courtStreet">
                     </div>
 
                     <div class="form-group">
                         <label>Court City <span class="label-hint">(required)</span></label>
-                        <input type="text" id="courtCity" required>
+                        <input type="text" id="courtCity">
                     </div>
 
                     <div class="form-group">
                         <label>Court State <span class="label-hint">(required)</span></label>
-                        <input type="text" id="courtState" value="Colorado" required>
+                        <input type="text" id="courtState" value="Colorado">
                     </div>
 
                     <div class="form-group">
                         <label>Court ZIP Code <span class="label-hint">(required)</span></label>
-                        <input type="text" id="courtZip" pattern="[0-9]{5}" required>
+                        <input type="text" id="courtZip" pattern="[0-9]{5}">
                     </div>
 
                     <div class="button-group">
@@ -474,27 +505,27 @@
 
                     <div class="form-group">
                         <label>Full Name <span class="label-hint">(required)</span></label>
-                        <input type="text" id="plaintiffName" required>
+                        <input type="text" id="plaintiffName">
                     </div>
 
                     <div class="form-group">
                         <label>Street Address <span class="label-hint">(required)</span></label>
-                        <input type="text" id="plaintiffAddress" required>
+                        <input type="text" id="plaintiffAddress">
                     </div>
 
                     <div class="form-group">
                         <label>City <span class="label-hint">(required)</span></label>
-                        <input type="text" id="plaintiffCity" required>
+                        <input type="text" id="plaintiffCity">
                     </div>
 
                     <div class="form-group">
                         <label>State <span class="label-hint">(required)</span></label>
-                        <input type="text" id="plaintiffState" value="Colorado" required>
+                        <input type="text" id="plaintiffState" value="Colorado">
                     </div>
 
                     <div class="form-group">
                         <label>ZIP Code <span class="label-hint">(required)</span></label>
-                        <input type="text" id="plaintiffZip" pattern="[0-9]{5}" required>
+                        <input type="text" id="plaintiffZip" pattern="[0-9]{5}">
                     </div>
 
                     <div class="form-group">
@@ -542,7 +573,7 @@
                             
                             <div class="form-group">
                                 <label>Full Name <span class="label-hint">(required)</span></label>
-                                <input type="text" id="defendant1Name" required>
+                                <input type="text" id="defendant1Name">
                             </div>
 
                             <div class="form-group">
@@ -552,22 +583,22 @@
 
                             <div class="form-group">
                                 <label>Street Address <span class="label-hint">(required)</span></label>
-                                <input type="text" id="defendant1Address" required>
+                                <input type="text" id="defendant1Address">
                             </div>
 
                             <div class="form-group">
                                 <label>City <span class="label-hint">(required)</span></label>
-                                <input type="text" id="defendant1City" required>
+                                <input type="text" id="defendant1City">
                             </div>
 
                             <div class="form-group">
                                 <label>State <span class="label-hint">(required)</span></label>
-                                <input type="text" id="defendant1State" value="Colorado" required>
+                                <input type="text" id="defendant1State" value="Colorado">
                             </div>
 
                             <div class="form-group">
                                 <label>ZIP Code <span class="label-hint">(required)</span></label>
-                                <input type="text" id="defendant1Zip" pattern="[0-9]{5}" required>
+                                <input type="text" id="defendant1Zip" pattern="[0-9]{5}">
                             </div>
 
                             <div class="form-group">
@@ -604,7 +635,7 @@
                     <div class="form-group" style="margin-top: 30px;">
                         <label>Defendant jurisdiction requirement:</label>
                         <div class="checkbox-group">
-                            <input type="checkbox" id="defendantJurisdiction" required>
+                            <input type="checkbox" id="defendantJurisdiction">
                             <label for="defendantJurisdiction" style="margin: 0;">I confirm that the defendant(s) reside, are regularly employed, have an office for business, or are a student in this county, OR the claim involves real property in this county.</label>
                         </div>
                     </div>
@@ -626,18 +657,19 @@
 
                     <div class="form-group">
                         <label>Amount Claimed <span class="label-hint">(required - numbers only, no dollar sign)</span></label>
-                        <input type="text" id="claimAmount" placeholder="Enter amount like: 1500.00 or 750" pattern="[0-9]*\.?[0-9]*" required oninput="this.value = this.value.replace(/[^0-9.]/g, '')">
+                        <input type="text" id="claimAmount" placeholder="Enter amount like: 1500.00 or 750" pattern="[0-9]*\.?[0-9]*" oninput="this.value = this.value.replace(/[^0-9.]/g, '')">
                         <small style="color: #666; font-size: 12px; margin-top: 5px; display: block;">Enter only numbers and decimal point (examples: 1500 or 1500.00)</small>
                     </div>
 
                     <div class="form-group">
-                        <label>Description of Your Claim <span class="label-hint">(required - be specific)</span></label>
-                        <textarea id="claimDescription" required placeholder="Describe in detail:
+                        <label>Description of Your Claim <span class="label-hint">(required - be specific, 100 word maximum)</span></label>
+                        <textarea id="claimDescription" placeholder="Describe in detail:
 - What happened
 - When it happened
 - Why the defendant owes you money or should return property
 - What property is being requested (if applicable)
-- Any relevant dates, agreements, or documentation"></textarea>
+- Any relevant dates, agreements, or documentation" oninput="checkWordCount(this)"></textarea>
+                        <small id="wordCount" style="color: #666; font-size: 12px; margin-top: 5px; display: block;">0 / 100 words</small>
                     </div>
 
                     <div class="info-box">
@@ -672,7 +704,7 @@
                     <div class="form-group">
                         <label>Service acknowledgment:</label>
                         <div class="checkbox-group">
-                            <input type="checkbox" id="serviceUnderstanding" required>
+                            <input type="checkbox" id="serviceUnderstanding">
                             <label for="serviceUnderstanding" style="margin: 0;">I understand it is my responsibility to have each defendant served with the "Defendant's Copy" by a person 18 years or older who is not a party to this action, at least 15 days prior to trial, and to provide the Court with written proof of service.</label>
                         </div>
                     </div>
@@ -680,7 +712,7 @@
                     <div class="form-group">
                         <label>Filing declaration:</label>
                         <div class="checkbox-group">
-                            <input type="checkbox" id="filingDeclaration" required>
+                            <input type="checkbox" id="filingDeclaration">
                             <label for="filingDeclaration" style="margin: 0;">I declare under penalty of perjury that I have not filed more than 2 claims in any Small Claims Court in this County during this calendar month, nor more than 18 claims in this County this calendar year.</label>
                         </div>
                     </div>
@@ -1061,7 +1093,7 @@
 
                     <div class="button-group">
                         <button type="button" class="btn-secondary" onclick="window.prevPage(); return false;">Back</button>
-                        <button type="button" class="btn-success">Generate Forms (Opens in New Tab)</button>
+                        <button type="button" class="btn-success" onclick="generateForm(); return false;">Generate Forms (Opens in New Tab)</button>
                     </div>
                 </div>
             </form>
@@ -1069,8 +1101,6 @@
     </div>
 
     <script>
-        // Main script section - functions already defined in HEAD
-        
         let currentSection = 1;
         const totalSections = 8;
         let defendant2Added = false;
@@ -1078,178 +1108,67 @@
         
         console.log('Script loaded! Current section:', currentSection);
         
-        // Wait for DOM to be ready
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', function() {
-                console.log('DOM loaded via event listener');
-                initializePage();
-            });
-        } else {
-            console.log('DOM already loaded');
-            initializePage();
-        }
+        console.log('Small Claims Questionnaire loaded');
         
-        function initializePage() {
-            console.log('Initializing page...');
-            attachButtonHandlers();
-            updateProgress();
-            setupConditionalFields();
-        }
-        
-        function attachButtonHandlers() {
-            // Find all buttons and attach handlers
-            const buttons = document.querySelectorAll('button');
-            console.log('Attaching handlers to', buttons.length, 'buttons');
+        // Add event listeners for automatic qualification checkboxes
+        document.addEventListener('DOMContentLoaded', function() {
+            // Auto-advance when any of the first 6 program checkboxes are checked
+            var programCheckboxes = ['programAidBlind', 'programOldAgePension', 'programSSI', 'programTANF', 'programSNAP', 'programAND'];
             
-            buttons.forEach(function(button, index) {
-                const text = button.textContent.trim();
-                console.log('Button', index, ':', text);
-                
-                if (text === 'Next' || text.includes('Next')) {
-                    button.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        console.log('Next button clicked!');
-                        handleNext();
-                        return false;
-                    }, false);
-                    button.addEventListener('touchend', function(e) {
-                        e.preventDefault();
-                        console.log('Next button touched!');
-                        handleNext();
-                        return false;
-                    }, false);
-                } else if (text === 'Back' || text.includes('Back')) {
-                    button.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        console.log('Back button clicked');
-                        handleBack();
-                        return false;
-                    }, false);
-                } else if (text.includes('Generate')) {
-                    button.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        console.log('Generate button clicked');
-                        generateForm();
-                        return false;
-                    }, false);
-                } else if (text.includes('Add Second Defendant')) {
-                    button.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        addDefendant2();
-                        return false;
-                    }, false);
-                } else if (text.includes('Remove Defendant')) {
-                    button.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        removeDefendant2();
-                        return false;
-                    }, false);
+            programCheckboxes.forEach(function(id) {
+                var checkbox = document.getElementById(id);
+                if (checkbox) {
+                    checkbox.addEventListener('change', function() {
+                        if (this.checked && window.currentSection === 7) {
+                            // Uncheck "None of the above"
+                            var noneCheckbox = document.getElementById('programNone');
+                            if (noneCheckbox) noneCheckbox.checked = false;
+                            
+                            // Auto-advance to next section after a brief delay
+                            setTimeout(function() {
+                                if (typeof generateSummary === 'function') generateSummary();
+                                showSection(8);
+                            }, 500);
+                        }
+                    });
                 }
             });
             
-            console.log('Button handlers attached');
-        }
-        
-        function setupConditionalFields() {
-            // Event listeners for conditional fields will be set up here
-            console.log('Setting up conditional fields');
-        }
-        
-        function handleNext() {
-            console.log('handleNext called, section:', currentSection);
-            
-            // Simple validation - just check if required fields have values
-            const currentSectionEl = document.querySelector('.section.active');
-            if (!currentSectionEl) {
-                console.error('No active section found');
-                return;
+            // Handle "None of the above" checkbox
+            var noneCheckbox = document.getElementById('programNone');
+            if (noneCheckbox) {
+                noneCheckbox.addEventListener('change', function() {
+                    if (this.checked) {
+                        // Uncheck all program checkboxes
+                        programCheckboxes.forEach(function(id) {
+                            var checkbox = document.getElementById(id);
+                            if (checkbox) checkbox.checked = false;
+                        });
+                    }
+                });
             }
             
-            const requiredInputs = currentSectionEl.querySelectorAll('input[required]:not([type="radio"]):not([type="checkbox"]), textarea[required]');
-            console.log('Required inputs:', requiredInputs.length);
+            // Interpreter language field toggle
+            var interpreterYes = document.getElementById('interpreterYes');
+            var interpreterNo = document.getElementById('interpreterNo');
+            var languageGroup = document.getElementById('interpreterLanguageGroup');
             
-            for (let i = 0; i < requiredInputs.length; i++) {
-                const input = requiredInputs[i];
-                if (!input.value || input.value.trim() === '') {
-                    alert('Please fill in all required fields');
-                    input.focus();
-                    return;
-                }
+            if (interpreterYes) {
+                interpreterYes.addEventListener('change', function() {
+                    if (this.checked && languageGroup) {
+                        languageGroup.style.display = 'block';
+                    }
+                });
             }
             
-            // Check required checkboxes
-            const requiredCheckboxes = currentSectionEl.querySelectorAll('input[type="checkbox"][required]');
-            for (let i = 0; i < requiredCheckboxes.length; i++) {
-                if (!requiredCheckboxes[i].checked) {
-                    alert('Please check all required boxes');
-                    return;
-                }
+            if (interpreterNo) {
+                interpreterNo.addEventListener('change', function() {
+                    if (this.checked && languageGroup) {
+                        languageGroup.style.display = 'none';
+                    }
+                });
             }
-            
-            console.log('Validation passed');
-            
-            // Special handling for section 5
-            if (currentSection === 5) {
-                generateSummary();
-            }
-            
-            // Special handling for section 6 (Fee Waiver)
-            if (currentSection === 6) {
-                const feeWaiverYes = document.getElementById('feeWaiverYes');
-                requestFeeWaiver = feeWaiverYes && feeWaiverYes.checked;
-                console.log('Fee waiver:', requestFeeWaiver);
-                
-                if (!requestFeeWaiver) {
-                    generateSummary();
-                    showSection(8);
-                    return;
-                }
-            }
-            
-            // Special handling for section 7
-            if (currentSection === 7) {
-                generateSummary();
-                showSection(8);
-                return;
-            }
-            
-            // Normal progression
-            if (currentSection < totalSections) {
-                showSection(currentSection + 1);
-            }
-        }
-        
-        function handleBack() {
-            console.log('handleBack called, section:', currentSection);
-            
-            if (currentSection > 1) {
-                if (currentSection === 8 && !requestFeeWaiver) {
-                    showSection(6);
-                } else {
-                    showSection(currentSection - 1);
-                }
-            }
-        }
-
-        function updateProgress() {
-            const progress = (currentSection / totalSections) * 100;
-            document.getElementById('progressBar').style.width = progress + '%';
-        }
-
-        function showSection(sectionNum) {
-            document.querySelectorAll('.section').forEach(section => {
-                section.classList.remove('active');
-            });
-            document.querySelector(`.section[data-section="${sectionNum}"]`).classList.add('active');
-            currentSection = sectionNum;
-            updateProgress();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
+        });
 
         function addDefendant2() {
             if (defendant2Added) return;
@@ -1332,6 +1251,32 @@
             return false;
         }
 
+        // Word count function for claim description
+        function checkWordCount(textarea) {
+            var text = textarea.value.trim();
+            var words = text ? text.split(/\s+/).filter(function(word) { return word.length > 0; }) : [];
+            var wordCount = words.length;
+            var counter = document.getElementById('wordCount');
+            
+            if (counter) {
+                counter.textContent = wordCount + ' / 100 words';
+                
+                if (wordCount > 100) {
+                    counter.style.color = '#dc2626';
+                    counter.style.fontWeight = 'bold';
+                    // Trim to 100 words
+                    var trimmedWords = words.slice(0, 100);
+                    textarea.value = trimmedWords.join(' ');
+                    counter.textContent = '100 / 100 words (maximum reached)';
+                } else if (wordCount > 90) {
+                    counter.style.color = '#f59e0b';
+                } else {
+                    counter.style.color = '#666';
+                    counter.style.fontWeight = 'normal';
+                }
+            }
+        }
+        
         function generateSummary() {
             const summaryContainer = document.getElementById('summaryContainer');
             
